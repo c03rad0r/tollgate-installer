@@ -85,6 +85,12 @@ var probeTimeout = 800 * time.Millisecond
 // not hold.
 const scanWorkers = 16
 
+// maxScanCandidates bounds the fan-out itself. A venue Wi-Fi uplink can expose
+// hundreds of ARP neighbours on a /16 (StarGate, 2026-11-05), and probing all
+// of them made GET /api/scan exceed its timeout. Gateway and subnet-derived
+// candidates are ordered first, so the cap can never drop the router's .1/.254.
+const maxScanCandidates = 48
+
 // tcpProbeFn is the TCP reachability check. A variable so the port fan-out can
 // be measured (and a dead LAN host simulated) without a network.
 var tcpProbeFn = tcpProbe
@@ -253,6 +259,9 @@ func hostCandidates(n hostNetwork) []candidate {
 	out := make([]candidate, 0, len(direct)+len(deferred))
 	out = append(out, direct...)
 	out = append(out, deferred...)
+	if len(out) > maxScanCandidates {
+		out = out[:maxScanCandidates]
+	}
 	return out
 }
 

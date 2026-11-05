@@ -1,6 +1,9 @@
 package app
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 // discover_candidates_test.go pins the candidate builder for the scan.
 //
@@ -339,4 +342,39 @@ func TestParseARPTableIface(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestHostCandidatesAreBounded pins the venue-network guard: a /16 uplink can
+// expose hundreds of ARP neighbours, and probing all of them made /api/scan
+// exceed its timeout. The cap must keep the route/subnet-derived router
+// candidates, which are ordered first.
+func TestHostCandidatesAreBounded(t *testing.T) {
+	arp := make([]arpEntry, 0, 300)
+	for i := 0; i < 300; i++ {
+		arp = append(arp, arpEntry{
+			IP:    fmt.Sprintf("10.2.1.%d", (i%250)+1),
+			Iface: "wlp59s0",
+		})
+	}
+	n := hostNetwork{
+		Gateways: []gatewayRoute{{IP: "10.2.0.1", Iface: "wlp59s0"}},
+		Addrs: []localAddr{
+			{Iface: "enx9", CIDR: "192.168.1.166/24"},
+			{Iface: "wlp59s0", CIDR: "10.2.5.37/16"},
+		},
+		ARP: arp,
+	}
+	got := hostCandidates(n)
+	if len(got) > maxScanCandidates {
+		t.Fatalf("candidate count = %d, want <= %d", len(got), maxScanCandidates)
+	}
+	if got[0].IP != "10.2.0.1" {
+		t.Fatalf("first candidate = %q, want the default-route gateway", got[0].IP)
+	}
+	for _, c := range got {
+		if c.IP == "192.168.1.1" {
+			return
+		}
+	}
+	t.Fatalf("192.168.1.1 was dropped by the cap: %v", candIPs(got))
 }
