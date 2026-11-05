@@ -1666,6 +1666,8 @@ func handleDeploy(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 400, "IP required")
 		return
 	}
+	// Repair the "router LAN stole the default route" shape before any download.
+	ensureNodeInternetForRouter(req.IP, "deploy")
 	if msg := validateDeployPasswords(req.AdminPassword, req.PrivateWiFiPassword); msg != "" {
 		writeError(w, 400, msg)
 		return

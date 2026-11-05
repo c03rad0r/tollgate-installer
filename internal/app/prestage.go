@@ -37,6 +37,10 @@ type prestageRequest struct {
 // bytes, so the download starts the moment the router is selected and the
 // deploy does not repeat it. Read-only with respect to the router.
 func runPreStageJob(job *Job, req prestageRequest) {
+	// The router's LAN must not outrank the node's working uplink: the asset
+	// download below needs the node's own internet, not a WAN-less router's
+	// black-hole default route.
+	ensureNodeInternetForRouter(req.IP, "prestage")
 	client := sshConnect(req.IP, req.Password)
 	if client == nil && req.Password != "" {
 		client = sshConnect(req.IP, "")
