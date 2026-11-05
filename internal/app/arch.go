@@ -952,9 +952,16 @@ var (
 // tollgateBuildProbes is the readback ladder, in order. `2>/dev/null` keeps a
 // missing command or binary from adding noise on older backends; `; true`
 // keeps the exit status clean so sshRun always returns output we can parse.
+//
+// Package metadata is the fallback. The CLI rungs come first (the tests and
+// the build-identification contract expect them), but each is bounded: 2 s
+// after launch the probe is killed. On the v0.6 feed `tollgate version` starts
+// the daemon and binds :2121 instead of printing and exiting; in the StarGate
+// run (2026-11-05) that became an orphan listener and the real daemon could not
+// start.
 var tollgateBuildProbes = []string{
-	"tollgate version --json 2>/dev/null; true",
-	"tollgate version 2>/dev/null; true",
+	"sh -c 'tollgate version --json 2>/dev/null & p=$!; sleep 2; kill $p 2>/dev/null; wait $p 2>/dev/null' 2>/dev/null; true",
+	"sh -c 'tollgate version 2>/dev/null & p=$!; sleep 2; kill $p 2>/dev/null; wait $p 2>/dev/null' 2>/dev/null; true",
 	"opkg list-installed tollgate-wrt 2>/dev/null; true",
 	"apk info -v tollgate-wrt 2>/dev/null; true",
 	"apk list --installed tollgate-wrt 2>/dev/null; true",
