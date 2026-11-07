@@ -2046,6 +2046,7 @@ func Main() {
 	mux.HandleFunc("/api/identify", handleIdentify)
 	mux.HandleFunc("/api/recheck", handleRecheck)
 	mux.HandleFunc("/api/trust-host-key", handleTrustHostKey)
+	mux.HandleFunc("/api/set-root-password", handleSetRootPassword)
 	mux.HandleFunc("/api/wifi-scan", handleWifiScan)
 	mux.HandleFunc("/api/wifi-test", handleWifiTest)
 	mux.HandleFunc("/api/prestage", handlePreStage)
