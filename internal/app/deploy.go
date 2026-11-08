@@ -4222,15 +4222,32 @@ func configureSTA(job *Job, pclient **ssh.Client, ip, password, ssid, wifiPass, 
 	return true
 }
 
+// emptyPasswordAllowedForWiFiTest controls whether an empty SSH password may be
+// retried. This is intentionally a variable so the retry boundary is testable
+// without SSH: only passwordVerdict(not_required) authorizes it.
+var emptyPasswordAllowedForWiFiTest = func(ip string) bool {
+	return passwordVerdict(ip, "") == "not_required"
+}
+
+// sshConnectForWiFiTest is an alias solely so the blank-retry boundary can be
+// exercised in unit tests without opening a connection.
+var sshConnectForWiFiTest = sshConnect
+
 // testSTAConfig applies the STA settings for ssid/wifiPass, waits for the
 // wwan interface to come up, then ALWAYS restores the pre-change wireless
 // config. Used by /api/wifi-test so a wrong SSID/password surfaces on the form
 // before a deploy spends time flashing/installing. Returns (ok, message).
 func testSTAConfig(ip, password, ssid, wifiPass, band string) (bool, string) {
 	b := normalizeBand(band)
-	client := sshConnect(ip, password)
+	client := sshConnectForWiFiTest(ip, password)
 	if client == nil && password != "" {
-		client = sshConnect(ip, "")
+		// Empty root password is only meaningful on a vanilla image. On a router
+		// with a real credential it must fail, and it can mask the actual password
+		// or host-key error with "no password was supplied". Only probe that state
+		// explicitly instead of making a blind second attempt.
+		if emptyPasswordAllowedForWiFiTest(ip) {
+			client = sshConnectForWiFiTest(ip, "")
+		}
 	}
 	if client == nil {
 		return false, sshConnectFailureMessage(ip, "cannot connect to router via SSH")
